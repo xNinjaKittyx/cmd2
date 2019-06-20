@@ -43,7 +43,7 @@ from contextlib import redirect_stdout
 from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Type, Union, IO
 
 import colorama
-from colorama import Fore
+from colorama import Fore, Back, Style
 
 from . import constants
 from . import plugin
@@ -397,6 +397,50 @@ class Cmd(cmd.Cmd):
                          'quiet': "Don't print nonessential feedback",
                          'timing': 'Report execution times'}
 
+        # Foreground color presets.
+        self.fg_colors = {
+            'black': Fore.BLACK,
+            'red': Fore.RED,
+            'green': Fore.GREEN,
+            'yellow': Fore.YELLOW,
+            'blue': Fore.BLUE,
+            'magenta': Fore.MAGENTA,
+            'cyan': Fore.CYAN,
+            'white': Fore.WHITE,
+            'gray': Fore.LIGHTBLACK_EX,
+            'lightred': Fore.LIGHTRED_EX,
+            'lightblue': Fore.LIGHTBLUE_EX,
+            'lightgreen': Fore.LIGHTGREEN_EX,
+            'lightyellow': Fore.LIGHTYELLOW_EX,
+            'lightblue': Fore.LIGHTBLUE_EX,
+            'lightmagenta': Fore.LIGHTMAGENTA_EX,
+            'lightcyan': Fore.LIGHTCYAN_EX,
+            'lightwhite': Fore.LIGHTWHITE_EX,
+            'reset': Fore.RESET,
+        }
+
+        # Background color presets.
+        self.bg_colors = {
+            'black': Back.BLACK,
+            'red': Back.RED,
+            'green': Back.GREEN,
+            'yellow': Back.YELLOW,
+            'blue': Back.BLUE,
+            'magenta': Back.MAGENTA,
+            'cyan': Back.CYAN,
+            'white': Back.WHITE,
+            'gray': Back.LIGHTBLACK_EX,
+            'lightred': Back.LIGHTRED_EX,
+            'lightblue': Back.LIGHTBLUE_EX,
+            'lightgreen': Back.LIGHTGREEN_EX,
+            'lightyellow': Back.LIGHTYELLOW_EX,
+            'lightblue': Back.LIGHTBLUE_EX,
+            'lightmagenta': Back.LIGHTMAGENTA_EX,
+            'lightcyan': Back.LIGHTCYAN_EX,
+            'lightwhite': Back.LIGHTWHITE_EX,
+            'reset': Back.RESET,
+        }
+
         # Commands to exclude from the help menu and tab completion
         self.hidden_commands = ['eof', '_relative_load', '_relative_run_script']
 
@@ -583,6 +627,26 @@ class Cmd(cmd.Cmd):
         """Setter for the allow_redirection property that determines whether or not redirection of stdout is allowed."""
         self.statement_parser.allow_redirection = value
 
+    def _style_message(self, msg: Any, end: str = '\n', fg: str = '', bg: str = '') -> str:
+        values = []
+        if fg:
+            try:
+                values.append(self.fg_colors[fg.lower()])
+            except KeyError:
+                raise ValueError('Color {} does not exist.'.format(fg))
+        if bg:
+            try:
+                values.append(self.bg_colors[bg.lower()])
+            except KeyError:
+                raise ValueError('Color {} does not exist.'.format(bg))
+        values.append(str(msg))
+        values.append(Fore.RESET)
+        values.append(Back.RESET)
+
+        if end:
+            values.append(end)
+        return "".join(values)
+
     def decolorized_write(self, fileobj: IO, msg: str) -> None:
         """Write a string to a fileobject, stripping ANSI escape sequences if necessary
 
@@ -594,7 +658,7 @@ class Cmd(cmd.Cmd):
             msg = utils.strip_ansi(msg)
         fileobj.write(msg)
 
-    def poutput(self, msg: Any, end: str = '\n', color: str = '') -> None:
+    def poutput(self, msg: Any, end: str = '\n', color: str = '', fg: str = '', bg: str = '') -> None:
         """Smarter self.stdout.write(); color aware and adds newline of not present.
 
         Also handles BrokenPipeError exceptions for when a commands's output has
@@ -607,12 +671,12 @@ class Cmd(cmd.Cmd):
         """
         if msg is not None and msg != '':
             try:
-                msg_str = '{}'.format(msg)
-                if not msg_str.endswith(end):
-                    msg_str += end
+                final_msg = self._style_message(msg, end=end, fg=fg, bg=bg)
                 if color:
-                    msg_str = color + msg_str + Fore.RESET
-                self.decolorized_write(self.stdout, msg_str)
+                    self.perror(self, "poutput(color=*) is deprecated, please use fg/bg instead.")
+                    final_msg = color + final_msg
+
+                self.decolorized_write(self.stdout, final_msg)
             except BrokenPipeError:
                 # This occurs if a command's output is being piped to another
                 # process and that process closes before the command is
@@ -622,8 +686,9 @@ class Cmd(cmd.Cmd):
                 if self.broken_pipe_warning:
                     sys.stderr.write(self.broken_pipe_warning)
 
-    def perror(self, err: Union[str, Exception], traceback_war: bool = True, err_color: str = Fore.LIGHTRED_EX,
-               war_color: str = Fore.LIGHTYELLOW_EX) -> None:
+    def perror(self, err: Union[str, Exception], traceback_war: bool = True,
+               err_color: str = "lightred", err_color_bg: str = '',
+               war_color: str = "lightyellow", war_color_bg: str = '') -> None:
         """ Print error message to sys.stderr and if debug is true, print an exception Traceback if one exists.
 
         :param err: an Exception or error message to print out
@@ -636,15 +701,19 @@ class Cmd(cmd.Cmd):
             traceback.print_exc()
 
         if isinstance(err, Exception):
-            err_msg = "EXCEPTION of type '{}' occurred with message: '{}'\n".format(type(err).__name__, err)
+            err_msg = "EXCEPTION of type '{}' occurred with message: '{}'".format(type(err).__name__, err)
         else:
-            err_msg = "{}\n".format(err)
-        err_msg = err_color + err_msg + Fore.RESET
+            err_msg = "{}".format(err)
+
+        err_msg = self._style_message(err_msg, fg=err_color, bg=err_color_bg)
+
+        # err_msg = err_color + err_msg + Fore.RESET
         self.decolorized_write(sys.stderr, err_msg)
 
         if traceback_war and not self.debug:
-            war = "To enable full traceback, run the following command:  'set debug true'\n"
-            war = war_color + war + Fore.RESET
+            war = "To enable full traceback, run the following command:  'set debug true'"
+            war = self._style_message(war, fg=war_color, bg=war_color_bg)
+            # war = war_color + war + Fore.RESET
             self.decolorized_write(sys.stderr, war)
 
     def pfeedback(self, msg: str) -> None:
@@ -3273,7 +3342,7 @@ class Cmd(cmd.Cmd):
             if args.__statement__.command == "pyscript":
                 self.perror("pyscript has been renamed and will be removed in the next release, "
                             "please use run_pyscript instead\n",
-                            traceback_war=False, err_color=Fore.LIGHTYELLOW_EX)
+                            traceback_war=False, err_color="lightyellow")
 
         return py_return
 
@@ -3583,7 +3652,7 @@ class Cmd(cmd.Cmd):
         # Check if all commands ran
         if commands_run < len(history):
             warning = "Command {} triggered a stop and ended transcript generation early".format(commands_run)
-            self.perror(warning, err_color=Fore.LIGHTYELLOW_EX, traceback_war=False)
+            self.perror(warning, err_color="lightyellow", traceback_war=False)
 
         # finally, we can write the transcript out to the file
         try:
@@ -3703,7 +3772,7 @@ class Cmd(cmd.Cmd):
             if args.__statement__.command == "load":
                 self.perror("load has been renamed and will be removed in the next release, "
                             "please use run_script instead\n",
-                            traceback_war=False, err_color=Fore.LIGHTYELLOW_EX)
+                            traceback_war=False, err_color="lightyellow")
 
     # load has been deprecated
     do_load = do_run_script
@@ -3730,7 +3799,7 @@ class Cmd(cmd.Cmd):
         if args.__statement__.command == "_relative_load":
             self.perror("_relative_load has been renamed and will be removed in the next release, "
                         "please use _relative_run_script instead\n",
-                        traceback_war=False, err_color=Fore.LIGHTYELLOW_EX)
+                        traceback_war=False, err_color="lightyellow")
 
         file_path = args.file_path
         # NOTE: Relative path is an absolute path, it is just relative to the current script directory
