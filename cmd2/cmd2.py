@@ -629,6 +629,7 @@ class Cmd(cmd.Cmd):
 
     def _style_message(self, msg: Any, end: str = '\n', fg: str = '', bg: str = '') -> str:
         values = []
+        msg = str(msg)
         if fg:
             try:
                 values.append(self.fg_colors[fg.lower()])
@@ -639,13 +640,17 @@ class Cmd(cmd.Cmd):
                 values.append(self.bg_colors[bg.lower()])
             except KeyError:
                 raise ValueError('Color {} does not exist.'.format(bg))
-        values.append(str(msg))
-        values.append(Fore.RESET)
-        values.append(Back.RESET)
-
-        if end:
+        values.append(msg)
+        # Not sure if Style.RESET would be desireable.
+        # values.append(Style.RESET)
+        if bg:
+            values.append(Back.RESET)
+        if end and not msg.endswith(end):
             values.append(end)
+        if fg:
+            values.append(Fore.RESET)
         return "".join(values)
+
 
     def decolorized_write(self, fileobj: IO, msg: str) -> None:
         """Write a string to a fileobject, stripping ANSI escape sequences if necessary
@@ -673,8 +678,8 @@ class Cmd(cmd.Cmd):
             try:
                 final_msg = self._style_message(msg, end=end, fg=fg, bg=bg)
                 if color:
-                    self.perror(self, "poutput(color=*) is deprecated, please use fg/bg instead.")
-                    final_msg = color + final_msg
+                    # self.perror("poutput(color=*) is deprecated, please use fg/bg instead.")
+                    final_msg = color + final_msg + Fore.RESET
 
                 self.decolorized_write(self.stdout, final_msg)
             except BrokenPipeError:
@@ -711,7 +716,7 @@ class Cmd(cmd.Cmd):
         self.decolorized_write(sys.stderr, err_msg)
 
         if traceback_war and not self.debug:
-            war = "To enable full traceback, run the following command:  'set debug true'"
+            war = "To enable full traceback, run the following command:  'set debug true'\n"
             war = self._style_message(war, fg=war_color, bg=war_color_bg)
             # war = war_color + war + Fore.RESET
             self.decolorized_write(sys.stderr, war)
