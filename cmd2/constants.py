@@ -71,3 +71,5 @@ BG_COLORS = {
     'lightwhite': Back.LIGHTWHITE_EX,
     'reset': Back.RESET,
 }
+
+DEFAULT_SHORTCUTS = {'?': 'help', '!': 'shell', '@': 'run_script', '@@': '_relative_run_script'}
