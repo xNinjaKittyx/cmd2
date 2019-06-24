@@ -1687,7 +1687,7 @@ class Cmd(cmd.Cmd):
             return self._run_cmdfinalization_hooks(stop, None)
         except ValueError as ex:
             # If shlex.split failed on syntax, let user know whats going on
-            self.perror("Invalid syntax: {}".format(ex), traceback_war=False)
+            self.pexcept("Invalid syntax: {}".format(ex), traceback_war=False)
             return stop
 
         # now that we have a statement, run it with all the hooks
@@ -2030,7 +2030,8 @@ class Cmd(cmd.Cmd):
         elif statement.output:
             import tempfile
             if (not statement.output_to) and (not self._can_clip):
-                self.perror("Cannot redirect to paste buffer; install 'pyperclip' and re-run to enable")
+                self.pexcept("Cannot redirect to paste buffer; install 'pyperclip' and re-run to enable",
+                             traceback_war=False)
                 redir_error = True
 
             elif statement.output_to:
@@ -3244,9 +3245,9 @@ class Cmd(cmd.Cmd):
             # Restore command line arguments to original state
             sys.argv = orig_args
             if args.__statement__.command == "pyscript":
-                self.perror("pyscript has been renamed and will be removed in the next release, "
+                self.pexcept("pyscript has been renamed and will be removed in the next release, "
                             "please use run_pyscript instead\n",
-                            fg="lightyellow")
+                            fg="lightyellow", traceback_war=False)
 
         return py_return
 
@@ -3556,14 +3557,14 @@ class Cmd(cmd.Cmd):
         # Check if all commands ran
         if commands_run < len(history):
             warning = "Command {} triggered a stop and ended transcript generation early".format(commands_run)
-            self.perror(warning, fg="lightyellow")
+            self.pexcept(warning, fg="lightyellow", traceback_war=False)
 
         # finally, we can write the transcript out to the file
         try:
             with open(transcript_file, 'w') as fout:
                 fout.write(transcript)
         except OSError as ex:
-            self.perror('Failed to save transcript: {}'.format(ex))
+            self.pexcept('Failed to save transcript: {}'.format(ex), traceback_war=False)
         else:
             # and let the user know what we did
             if commands_run > 1:
@@ -3674,9 +3675,9 @@ class Cmd(cmd.Cmd):
                         self._script_dir.pop()
         finally:
             if args.__statement__.command == "load":
-                self.perror("load has been renamed and will be removed in the next release, "
+                self.pexcept("load has been renamed and will be removed in the next release, "
                             "please use run_script instead\n",
-                            fg="lightyellow")
+                            fg="lightyellow", traceback_war=False)
 
     # load has been deprecated
     do_load = do_run_script
@@ -3701,9 +3702,9 @@ class Cmd(cmd.Cmd):
         :return: True if running of commands should stop
         """
         if args.__statement__.command == "_relative_load":
-            self.perror("_relative_load has been renamed and will be removed in the next release, "
+            self.pexcept("_relative_load has been renamed and will be removed in the next release, "
                          "please use _relative_run_script instead\n",
-                         fg="lightyellow")
+                         fg="lightyellow", traceback_war=False)
 
         file_path = args.file_path
         # NOTE: Relative path is an absolute path, it is just relative to the current script directory

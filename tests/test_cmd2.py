@@ -1901,14 +1901,14 @@ class ColorsApp(cmd2.Cmd):
 
     def do_echo(self, args):
         self.poutput(args)
-        self.perror(args, False)
+        self.pexcept(args, traceback_war=False)
 
     def do_echo_error(self, args):
         color_on = Fore.RED + Back.BLACK
         color_off = Style.RESET_ALL
         self.poutput(color_on + args + color_off)
-        # perror uses colors by default
-        self.perror(args, False)
+        # pexcept uses colors by default
+        self.pexcept(args, traceback_war=False)
 
 def test_colors_default():
     app = ColorsApp()
